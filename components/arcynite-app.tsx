@@ -18,6 +18,7 @@ import {
   UserRound,
   Wallet
 } from "lucide-react";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
   useAccount,
@@ -71,38 +72,34 @@ function formatNumber(value: number) {
 }
 
 function ArcyniteMark({ compact = false }: { compact?: boolean }) {
+  if (!compact) {
+    return (
+      <div className="relative mb-6 h-32 w-64 sm:h-40 sm:w-80">
+        <Image
+          src="/brand/arcynite-logo.png"
+          alt="Arcynite"
+          fill
+          priority
+          sizes="320px"
+          className="object-contain object-left drop-shadow-[0_18px_28px_rgba(34,60,88,0.16)]"
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex items-center gap-3 ${compact ? "" : "mb-6"}`}>
-      <div className="relative grid size-14 place-items-center rounded-[22px] bg-white shadow-[0_10px_24px_rgba(34,60,88,0.12)] ring-1 ring-ink/10 sm:size-16">
-        <svg viewBox="0 0 72 72" className="size-12 sm:size-14" aria-hidden="true">
-          <defs>
-            <linearGradient id="arcyniteArc" x1="8" x2="64" y1="12" y2="60" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#1BB7C9" />
-              <stop offset="0.52" stopColor="#7BE6B2" />
-              <stop offset="1" stopColor="#FFB35C" />
-            </linearGradient>
-            <linearGradient id="arcyniteGem" x1="26" x2="48" y1="20" y2="51" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#B9A6FF" />
-              <stop offset="1" stopColor="#29C7D9" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M55 18.5C45.4 7.8 27.9 8.1 18.2 19.4C7.9 31.5 10.8 49 23.7 57.3"
-            fill="none"
-            stroke="url(#arcyniteArc)"
-            strokeLinecap="round"
-            strokeWidth="8"
-          />
-          <path d="M35.5 19.8 50 31.4 45.2 50.8H26.4l-4.9-19.4 14-11.6Z" fill="url(#arcyniteGem)" />
-          <path d="M35.5 19.8v31M21.5 31.4h28.6M26.4 50.8l9.1-19.4 9.7 19.4" fill="none" stroke="white" strokeLinecap="round" strokeWidth="2.3" opacity="0.8" />
-          <path d="M25 44.8h22.5v8.6H25z" fill="#26324B" opacity="0.14" />
-          <path d="M29 37.6h6.3v15.8H29zM38 33.5h6.3v19.9H38z" fill="#26324B" opacity="0.2" />
-          <path d="M50.5 21.5c3.2 1 5.7 3.3 6.6 6.2" fill="none" stroke="#FFD166" strokeLinecap="round" strokeWidth="4" />
-        </svg>
+    <div className="flex items-center gap-4">
+      <div className="relative size-16 shrink-0 overflow-visible">
+        <Image
+          src="/brand/arcynite-logo.png"
+          alt="Arcynite"
+          fill
+          sizes="64px"
+          className="object-contain drop-shadow-[0_12px_22px_rgba(34,60,88,0.18)]"
+        />
       </div>
       <div>
-        <p className="font-display text-3xl font-bold leading-none text-ink sm:text-4xl">Arcynite</p>
-        {!compact ? <p className="mt-1 text-sm font-extrabold uppercase tracking-[0.16em] text-lagoon">Arc Testnet city</p> : null}
+        <p className="font-display text-2xl font-bold leading-none text-ink">Arcynite</p>
       </div>
     </div>
   );
