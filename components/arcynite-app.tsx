@@ -53,10 +53,10 @@ type TxState = {
 };
 
 const sectionLabels: { id: Section; label: string; icon: typeof Map }[] = [
-  { id: "city", label: "City Map", icon: Map },
-  { id: "gate", label: "Flock Gate", icon: UserRound },
+  { id: "city", label: "City", icon: Map },
+  { id: "gate", label: "Gate", icon: UserRound },
   { id: "rally", label: "Rally", icon: Gamepad2 },
-  { id: "academy", label: "Academy", icon: Bot },
+  { id: "academy", label: "Agent", icon: Bot },
   { id: "quests", label: "Quests", icon: BadgeCheck },
   { id: "badges", label: "Badges", icon: Medal },
   { id: "leaderboard", label: "Ranks", icon: Trophy },
@@ -326,6 +326,8 @@ export function ArcyniteApp() {
 
   const currentFaction = factions[field(citizen.faction, 0)] ?? factions[0];
   const txLink = tx.hash ? txUrl(tx.hash) : undefined;
+  const activeNavItem = sectionLabels.find((item) => item.id === activeSection) ?? sectionLabels[0];
+  const walletLabel = connectedToArc ? "Arc Testnet" : isConnected ? "Wrong chain" : "Preview mode";
 
   return (
     <main className="min-h-screen">
@@ -342,40 +344,70 @@ export function ArcyniteApp() {
       />
 
       <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="sticky top-3 z-20 mb-6 rounded-[24px] border border-ink/10 bg-white/88 p-2 shadow-soft backdrop-blur">
-          <div className="flex flex-wrap gap-2">
-            {sectionLabels.map((item) => {
-              const Icon = item.icon;
-              const selected = activeSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveSection(item.id)}
-                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold transition ${
-                    selected ? "bg-ink text-white shadow-lg" : "text-ink/70 hover:bg-skyglass hover:text-ink"
-                  }`}
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </button>
-              );
-            })}
-            <div className="ml-auto flex items-center gap-2">
+        <motion.div
+          initial={{ y: -12, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-3 z-20 mb-5 overflow-hidden rounded-[30px] border border-white/80 bg-white/86 shadow-[0_18px_48px_rgba(38,50,75,0.13)] backdrop-blur-xl"
+        >
+          <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 items-center justify-between gap-3 lg:w-[205px] lg:justify-start">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative size-12 shrink-0">
+                  <Image src="/brand/arcynite-logo.png" alt="Arcynite" fill sizes="48px" className="object-contain drop-shadow-[0_8px_14px_rgba(34,60,88,0.18)]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-display text-lg font-bold leading-none text-ink">Arcynite</p>
+                  <p className="mt-1 truncate text-xs font-extrabold uppercase tracking-[0.12em] text-lagoon">{activeNavItem.label}</p>
+                </div>
+              </div>
+              <span className={`rounded-full px-3 py-1.5 text-xs font-extrabold lg:hidden ${connectedToArc ? "bg-mint/45 text-ink" : "bg-sun/45 text-ink"}`}>
+                {walletLabel}
+              </span>
+            </div>
+
+            <div className="min-w-0 flex-1 overflow-x-auto rounded-[22px] bg-skyglass/58 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max items-center gap-1">
+                {sectionLabels.map((item) => {
+                  const Icon = item.icon;
+                  const selected = activeSection === item.id;
+                  return (
+                    <motion.button
+                      key={item.id}
+                      onClick={() => setActiveSection(item.id)}
+                      whileHover={{ y: -1 }}
+                      whileTap={{ scale: 0.96 }}
+                      className={`relative flex items-center gap-1.5 rounded-[18px] px-3 py-2.5 text-[13px] font-extrabold transition ${
+                        selected ? "text-white" : "text-ink/62 hover:bg-white/70 hover:text-ink"
+                      }`}
+                    >
+                      {selected ? <motion.span layoutId="activeNavPill" className="absolute inset-0 rounded-[18px] bg-ink shadow-[0_10px_22px_rgba(38,50,75,0.18)]" /> : null}
+                      <Icon className="relative size-4" />
+                      <span className="relative">{item.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 lg:w-[220px] lg:justify-end">
+              <span className={`hidden rounded-full px-3 py-2 text-xs font-extrabold lg:inline-flex ${connectedToArc ? "bg-mint/45 text-ink" : "bg-sun/45 text-ink"}`}>
+                {walletLabel}
+              </span>
               {isConnected ? (
                 <>
-                  <span className="rounded-full bg-mint/35 px-4 py-2 text-sm font-extrabold text-ink">{shortAddress(address)}</span>
-                  <button className="rounded-full bg-white px-3 py-2 text-ink hover:bg-coral/15" onClick={() => disconnect()}>
+                  <span className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-ink shadow-[inset_0_0_0_1px_rgba(38,50,75,0.08)]">{shortAddress(address)}</span>
+                  <button className="grid size-10 place-items-center rounded-full bg-white text-ink shadow-[inset_0_0_0_1px_rgba(38,50,75,0.08)] transition hover:bg-coral/15" onClick={() => disconnect()} aria-label="Disconnect wallet">
                     <LogOut className="size-4" />
                   </button>
                 </>
               ) : (
-                <button className="toy-button bg-lagoon px-4 py-2 text-sm font-extrabold text-white" onClick={connectWallet}>
-                  Connect
+                <button className="toy-button bg-lagoon px-5 py-2.5 text-sm font-extrabold text-white" onClick={connectWallet}>
+                  Connect Wallet
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <StatusBar
           connectedToArc={connectedToArc}

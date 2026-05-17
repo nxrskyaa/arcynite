@@ -89,6 +89,22 @@ const entityMeta: Record<EntityKind, { label: string; color: string; hazard?: bo
   bridge: { label: "broken tile", color: "#B29B77", hazard: true }
 };
 
+const collectGuide: { kind: EntityKind; title: string; detail: string }[] = [
+  { kind: "citizen", title: "Citizens", detail: "+flock size" },
+  { kind: "coin", title: "USDC Coins", detail: "+score +coins" },
+  { kind: "crystal", title: "Arc Crystals", detail: "bonus score" },
+  { kind: "core", title: "Agent Cores", detail: "+combo" },
+  { kind: "shard", title: "Bridge Shards", detail: "big bonus" }
+];
+
+const avoidGuide: { kind: EntityKind; title: string; detail: string }[] = [
+  { kind: "gas", title: "Gas Spikes", detail: "-score -flock" },
+  { kind: "bot", title: "Scam Bots", detail: "-2 flock" },
+  { kind: "cloud", title: "Volatility", detail: "-combo" },
+  { kind: "crate", title: "Failed Tx", detail: "-score" },
+  { kind: "bridge", title: "Broken Tiles", detail: "-flock" }
+];
+
 function seedRunEntities(): Entity[] {
   const kinds: EntityKind[] = ["coin", "citizen", "crystal", "gas", "core", "coin", "shard", "crate", "coin"];
   return kinds.map((kind, index) => ({
@@ -98,6 +114,18 @@ function seedRunEntities(): Entity[] {
     kind,
     bob: index * 0.7
   }));
+}
+
+function GuideDot({ kind }: { kind: EntityKind }) {
+  const meta = entityMeta[kind];
+  return (
+    <span className="relative grid size-9 shrink-0 place-items-center rounded-2xl bg-white shadow-[inset_0_0_0_1px_rgba(38,50,75,0.08)]">
+      <span className="absolute inset-1 rounded-xl opacity-20" style={{ backgroundColor: meta.color }} />
+      <span className="relative text-sm font-black text-ink">
+        {kind === "citizen" ? "B" : kind === "coin" ? "$" : kind === "crystal" ? "C" : kind === "core" ? "A" : kind === "shard" ? "H" : kind === "gas" ? "!" : kind === "bot" ? "X" : kind === "cloud" ? "~" : kind === "crate" ? "TX" : "BR"}
+      </span>
+    </span>
+  );
 }
 
 function lerp(a: number, b: number, t: number) {
@@ -775,11 +803,16 @@ export function ArcFlockRally({
             <div className="ribbon px-3 py-2">Time {Math.ceil(snapshot.timeLeft)}s</div>
           </div>
           {!snapshot.running && !result ? (
-            <div className="absolute inset-0 grid place-items-center bg-white/12 backdrop-blur-[1px]">
-              <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-4 max-w-sm rounded-[28px] bg-white/88 p-5 text-center shadow-soft ring-1 ring-white/80">
+            <div className="absolute inset-0 grid place-items-center bg-white/16 backdrop-blur-[1px]">
+              <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-4 max-w-md rounded-[28px] bg-white/90 p-5 text-center shadow-soft ring-1 ring-white/80">
                 <Sparkles className="mx-auto mb-2 size-9 text-lagoon" />
                 <h3 className="font-display text-3xl font-bold">Arc Flock Rally</h3>
-                <p className="mt-2 text-sm font-bold text-ink/62">Swipe or use arrow keys. Collect citizens and Arc items, dodge hazards, then submit only after game over.</p>
+                <p className="mt-2 text-sm font-bold text-ink/62">Move left and right across 3 lanes. Take glowing rewards, dodge red/brown hazards, survive 60 seconds, then submit the final score on Arc.</p>
+                <div className="mt-4 grid gap-2 text-left text-xs font-extrabold sm:grid-cols-3">
+                  <span className="rounded-2xl bg-mint/45 px-3 py-2 text-ink">1. Swipe / arrows</span>
+                  <span className="rounded-2xl bg-sun/45 px-3 py-2 text-ink">2. Collect rewards</span>
+                  <span className="rounded-2xl bg-coral/18 px-3 py-2 text-ink">3. Avoid hazards</span>
+                </div>
               </motion.div>
             </div>
           ) : null}
@@ -837,8 +870,43 @@ export function ArcFlockRally({
               ) : null}
             </motion.div>
           ) : (
-            <div className="rounded-3xl bg-white/70 p-4 text-sm font-semibold text-ink/65">
-              No checkerboard sprites now. The run uses canvas-native isometric characters, city props, reward particles, flock followers, and hazard feedback.
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-white/70 p-4">
+                <h4 className="font-display text-lg font-bold text-ink">How to play</h4>
+                <div className="mt-3 space-y-2 text-sm font-bold text-ink/65">
+                  <p>Move between 3 lanes with arrow keys, swipe, or drag.</p>
+                  <p>Collect bright Arc items to grow score and combo.</p>
+                  <p>Avoid warning-colored hazards. If flock reaches 0, the run ends.</p>
+                </div>
+              </div>
+              <div className="rounded-3xl bg-mint/25 p-4">
+                <h4 className="font-display text-lg font-bold text-ink">Collect these</h4>
+                <div className="mt-3 grid gap-2">
+                  {collectGuide.map((item) => (
+                    <div key={item.kind} className="flex items-center gap-3 rounded-2xl bg-white/72 px-3 py-2">
+                      <GuideDot kind={item.kind} />
+                      <div>
+                        <p className="text-sm font-extrabold text-ink">{item.title}</p>
+                        <p className="text-xs font-bold text-ink/55">{item.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-3xl bg-coral/12 p-4">
+                <h4 className="font-display text-lg font-bold text-ink">Avoid these</h4>
+                <div className="mt-3 grid gap-2">
+                  {avoidGuide.map((item) => (
+                    <div key={item.kind} className="flex items-center gap-3 rounded-2xl bg-white/72 px-3 py-2">
+                      <GuideDot kind={item.kind} />
+                      <div>
+                        <p className="text-sm font-extrabold text-ink">{item.title}</p>
+                        <p className="text-xs font-bold text-ink/55">{item.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
