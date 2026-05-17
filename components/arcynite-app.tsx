@@ -18,7 +18,6 @@ import {
   UserRound,
   Wallet
 } from "lucide-react";
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
   useAccount,
@@ -69,6 +68,83 @@ function field<T>(value: T | undefined, fallback: T) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function ArcyniteMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`flex items-center gap-3 ${compact ? "" : "mb-6"}`}>
+      <div className="relative grid size-14 place-items-center rounded-[22px] bg-white shadow-[0_10px_24px_rgba(34,60,88,0.12)] ring-1 ring-ink/10 sm:size-16">
+        <svg viewBox="0 0 72 72" className="size-12 sm:size-14" aria-hidden="true">
+          <defs>
+            <linearGradient id="arcyniteArc" x1="8" x2="64" y1="12" y2="60" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#1BB7C9" />
+              <stop offset="0.52" stopColor="#7BE6B2" />
+              <stop offset="1" stopColor="#FFB35C" />
+            </linearGradient>
+            <linearGradient id="arcyniteGem" x1="26" x2="48" y1="20" y2="51" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#B9A6FF" />
+              <stop offset="1" stopColor="#29C7D9" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M55 18.5C45.4 7.8 27.9 8.1 18.2 19.4C7.9 31.5 10.8 49 23.7 57.3"
+            fill="none"
+            stroke="url(#arcyniteArc)"
+            strokeLinecap="round"
+            strokeWidth="8"
+          />
+          <path d="M35.5 19.8 50 31.4 45.2 50.8H26.4l-4.9-19.4 14-11.6Z" fill="url(#arcyniteGem)" />
+          <path d="M35.5 19.8v31M21.5 31.4h28.6M26.4 50.8l9.1-19.4 9.7 19.4" fill="none" stroke="white" strokeLinecap="round" strokeWidth="2.3" opacity="0.8" />
+          <path d="M25 44.8h22.5v8.6H25z" fill="#26324B" opacity="0.14" />
+          <path d="M29 37.6h6.3v15.8H29zM38 33.5h6.3v19.9H38z" fill="#26324B" opacity="0.2" />
+          <path d="M50.5 21.5c3.2 1 5.7 3.3 6.6 6.2" fill="none" stroke="#FFD166" strokeLinecap="round" strokeWidth="4" />
+        </svg>
+      </div>
+      <div>
+        <p className="font-display text-3xl font-bold leading-none text-ink sm:text-4xl">Arcynite</p>
+        {!compact ? <p className="mt-1 text-sm font-extrabold uppercase tracking-[0.16em] text-lagoon">Arc Testnet city</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function MiniCity() {
+  const buildings = [
+    "left-[12%] top-[38%] h-24 w-20 bg-coral",
+    "left-[30%] top-[24%] h-36 w-24 bg-lagoon",
+    "left-[50%] top-[32%] h-28 w-24 bg-lilac",
+    "right-[14%] top-[42%] h-24 w-24 bg-sun"
+  ];
+
+  return (
+    <div className="relative mx-auto aspect-[1.1/1] w-full max-w-[560px]">
+      <div className="absolute inset-x-8 bottom-4 h-16 rounded-[100%] bg-ink/10 blur-xl" />
+      <div className="absolute inset-8 rounded-[44px] bg-gradient-to-br from-mint via-skyglass to-sun/80 shadow-toy [transform:rotateX(58deg)_rotateZ(-35deg)]" />
+      <div className="absolute left-[18%] top-[58%] h-16 w-64 rounded-[100%] bg-lagoon/15 blur-md" />
+      {buildings.map((className, index) => (
+        <motion.div
+          key={className}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 + index * 0.08 }}
+          className={`absolute rounded-[22px] border-4 border-white/70 shadow-soft ${className}`}
+        >
+          <div className="mx-auto mt-[-18px] h-10 w-12 rounded-t-full bg-white/80" />
+          <div className="mx-auto mt-4 grid w-12 grid-cols-2 gap-2">
+            <span className="h-3 rounded-full bg-white/60" />
+            <span className="h-3 rounded-full bg-white/60" />
+            <span className="h-3 rounded-full bg-white/60" />
+            <span className="h-3 rounded-full bg-white/60" />
+          </div>
+        </motion.div>
+      ))}
+      <div className="absolute left-[42%] top-[12%] grid size-24 place-items-center rounded-full bg-white/85 shadow-soft">
+        <Sparkles className="size-10 text-lagoon" />
+      </div>
+      <div className="absolute bottom-[18%] right-[10%] rounded-[24px] bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-soft">USDC gas</div>
+      <div className="absolute left-[8%] top-[18%] rounded-[24px] bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-soft">Quest city</div>
+    </div>
+  );
 }
 
 export function ArcyniteApp() {
@@ -269,7 +345,7 @@ export function ArcyniteApp() {
       />
 
       <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="sticky top-3 z-20 mb-6 rounded-[28px] border-2 border-white/80 bg-white/82 p-2 shadow-soft backdrop-blur">
+        <div className="sticky top-3 z-20 mb-6 rounded-[24px] border border-ink/10 bg-white/88 p-2 shadow-soft backdrop-blur">
           <div className="flex flex-wrap gap-2">
             {sectionLabels.map((item) => {
               const Icon = item.icon;
@@ -279,7 +355,7 @@ export function ArcyniteApp() {
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
                   className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold transition ${
-                    selected ? "bg-ink text-white shadow-lg" : "bg-white text-ink hover:bg-skyglass"
+                    selected ? "bg-ink text-white shadow-lg" : "text-ink/70 hover:bg-skyglass hover:text-ink"
                   }`}
                 >
                   <Icon className="size-4" />
@@ -417,13 +493,13 @@ function Hero({
   onExplore: () => void;
 }) {
   return (
-    <section className="relative overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto grid min-h-[640px] max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+    <section className="relative overflow-hidden px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[620px] max-w-7xl items-center gap-10 lg:grid-cols-[0.92fr_1.08fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
-          <Image src="/brand/arcynite-logo.png" alt="Arcynite" width={280} height={180} priority className="mb-4 h-auto w-56 sm:w-72" />
-          <h1 className="font-display text-5xl font-bold leading-[0.95] text-ink sm:text-7xl">Arcynite</h1>
-          <p className="mt-5 max-w-xl text-lg font-bold leading-8 text-ink/70">
-            Explore a cozy floating Arc Testnet city, create your citizen profile, train an agent, rally your flock, and record onboarding achievements onchain.
+          <ArcyniteMark />
+          <h1 className="max-w-2xl font-display text-5xl font-bold leading-[0.96] text-ink sm:text-7xl">A playable onboarding city for Arc Testnet.</h1>
+          <p className="mt-6 max-w-xl text-lg font-bold leading-8 text-ink/68">
+            Create a citizen, learn USDC gas, complete quests, train an agent, play the rally, and submit achievements to Arc.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             {!isConnected ? (
@@ -448,8 +524,8 @@ function Hero({
             </a>
           </div>
           <div className="mt-5 flex flex-wrap gap-2 text-sm font-extrabold text-ink/65">
-            <span className="ribbon px-4 py-2">Chain ID 5042002</span>
-            <span className="ribbon px-4 py-2">Native gas USDC</span>
+            <span className="ribbon px-4 py-2">Arc Testnet</span>
+            <span className="ribbon px-4 py-2">USDC native gas</span>
             <span className="ribbon px-4 py-2">{isConnected ? shortAddress(address) : "Wallet ready"}</span>
           </div>
         </motion.div>
@@ -458,33 +534,9 @@ function Hero({
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.65, delay: 0.1 }}
-          className="relative min-h-[520px]"
+          className="relative"
         >
-          <div className="absolute inset-x-8 bottom-2 h-16 rounded-[100%] bg-ink/10 blur-xl" />
-          <div className="island absolute left-1/2 top-1/2 h-[430px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-[48px] bg-gradient-to-br from-mint via-skyglass to-sun shadow-toy">
-            <div className="absolute left-[14%] top-[18%] h-24 w-24 rounded-[28px] bg-coral shadow-soft" />
-            <div className="absolute left-[42%] top-[8%] h-32 w-28 rounded-[32px] bg-lilac shadow-soft" />
-            <div className="absolute right-[12%] top-[28%] h-28 w-28 rounded-[50%] bg-lagoon shadow-soft" />
-            <div className="absolute bottom-[20%] left-[26%] h-28 w-36 rounded-[34px] bg-white shadow-soft" />
-            <div className="absolute bottom-[14%] right-[20%] h-24 w-24 rounded-[32px] bg-sun shadow-soft" />
-          </div>
-          {zones.slice(0, 7).map((zone, index) => {
-            const Icon = zone.icon;
-            return (
-              <motion.div
-                key={zone.id}
-                animate={{ y: [0, index % 2 ? -8 : 8, 0] }}
-                transition={{ repeat: Infinity, duration: 4 + index * 0.2, ease: "easeInOut" }}
-                className="absolute rounded-3xl border-2 border-white bg-white/90 p-3 shadow-soft"
-                style={{
-                  left: `${12 + ((index * 23) % 70)}%`,
-                  top: `${14 + ((index * 17) % 58)}%`
-                }}
-              >
-                <Icon className="size-6 text-lagoon" />
-              </motion.div>
-            );
-          })}
+          <MiniCity />
         </motion.div>
       </div>
     </section>
@@ -578,52 +630,56 @@ function CityMap({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="soft-panel relative min-h-[720px] overflow-hidden rounded-[36px] p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,209,102,0.35),transparent_18rem),radial-gradient(circle_at_82%_28%,rgba(123,230,178,0.35),transparent_20rem)]" />
-        <div className="relative mb-5">
-          <h2 className="font-display text-4xl font-bold">Arcynite City Map</h2>
-          <p className="mt-2 max-w-2xl font-semibold text-ink/65">A colorful onboarding hub for profiles, Arc education, rally runs, badges, and faction progress.</p>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="soft-panel relative overflow-hidden rounded-[32px] p-5 sm:p-7">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.65),rgba(233,249,255,0.22))]" />
+        <div className="relative mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-display text-4xl font-bold">Arcynite City Map</h2>
+            <p className="mt-2 max-w-2xl font-semibold text-ink/62">A cleaner city board for profile creation, Arc lessons, rally play, badges, and rankings.</p>
+          </div>
+          <div className="rounded-2xl bg-ink px-4 py-3 text-sm font-extrabold text-white">9 zones</div>
         </div>
-        <div className="relative grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {zones.map((zone, index) => {
+        <div className="relative grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {zones.map((zone) => {
             const Icon = zone.icon;
             const isUnlocked = zone.id === 0 || unlockedZoneIds.has(zone.id) || zone.state === "unlocked" || hasProfile;
             const completed = completedQuestIds.has(zone.id) || (zone.id === 0 && hasProfile);
             const coming = zone.state === "coming";
             return (
               <motion.div
-                whileHover={{ y: -7, rotate: index % 2 ? 1 : -1 }}
+                whileHover={{ y: -5 }}
                 key={zone.id}
-                className={`rounded-[30px] border-2 p-5 shadow-soft ${
+                className={`group rounded-[24px] border p-4 shadow-[0_10px_30px_rgba(38,50,75,0.08)] transition ${
                   coming
-                    ? "border-dashed border-ink/15 bg-white/55"
+                    ? "border-dashed border-ink/15 bg-white/48"
                     : completed
-                      ? "border-mint bg-white"
+                      ? "border-mint/70 bg-white"
                       : isUnlocked
-                        ? "border-white bg-white/90"
-                        : "border-ink/10 bg-white/55 opacity-70"
+                        ? "border-white/80 bg-white/82"
+                        : "border-ink/10 bg-white/48 opacity-70"
                 }`}
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="rounded-2xl bg-skyglass p-3 text-lagoon">
-                    <Icon className="size-7" />
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <span className="grid size-12 place-items-center rounded-2xl bg-skyglass text-lagoon ring-1 ring-lagoon/10">
+                    <Icon className="size-6" />
                   </span>
-                  <span className="ribbon px-3 py-1 text-xs font-extrabold">
+                  <span className="rounded-full bg-ink/5 px-3 py-1 text-xs font-extrabold text-ink/62">
                     {coming ? "Coming soon" : completed ? "Completed" : isUnlocked ? "Unlocked" : "Locked"}
                   </span>
                 </div>
-                <h3 className="font-display text-2xl font-bold">{zone.name}</h3>
-                <p className="mt-2 min-h-20 text-sm font-semibold leading-6 text-ink/62">{zone.text}</p>
+                <h3 className="font-display text-xl font-bold">{zone.name}</h3>
+                <p className="mt-2 min-h-20 text-sm font-semibold leading-6 text-ink/58">{zone.text}</p>
                 <button
-                  className="toy-button mt-4 w-full bg-lagoon px-4 py-3 text-sm font-extrabold text-white disabled:bg-ink/20"
+                  className="mt-4 flex w-full items-center justify-between rounded-2xl bg-lagoon px-4 py-3 text-sm font-extrabold text-white transition group-hover:bg-ink disabled:bg-ink/20"
                   disabled={coming}
                   onClick={() => {
                     if (!isUnlocked) onUnlock(zone.id);
                     else onSection(route[zone.id] ?? "quests");
                   }}
                 >
-                  {isUnlocked ? zone.action : "Unlock zone"}
+                  <span>{isUnlocked ? zone.action : "Unlock zone"}</span>
+                  <ChevronRight className="size-4" />
                 </button>
               </motion.div>
             );
@@ -632,13 +688,13 @@ function CityMap({
       </div>
 
       <div className="space-y-4">
-        <div className="soft-panel rounded-[30px] p-5">
-          <h3 className="font-display text-2xl font-bold">Faction colors</h3>
+        <div className="soft-panel rounded-[28px] p-5">
+          <h3 className="font-display text-2xl font-bold">Factions</h3>
           <div className="mt-4 space-y-3">
             {factions.map((item) => (
-              <div key={item.id} className="rounded-3xl bg-white/70 p-4">
+              <div key={item.id} className="rounded-2xl bg-white/65 p-4 ring-1 ring-ink/5">
                 <div className="flex items-center gap-3">
-                  <span className={`rounded-2xl bg-gradient-to-br ${item.color} px-3 py-2 text-xs font-extrabold text-white`}>{item.icon}</span>
+                  <span className={`rounded-xl bg-gradient-to-br ${item.color} px-3 py-2 text-xs font-extrabold text-white`}>{item.icon}</span>
                   <span className="font-display text-lg font-bold">{item.name}</span>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-ink/60">{item.description}</p>
@@ -646,9 +702,9 @@ function CityMap({
             ))}
           </div>
         </div>
-        <div className="soft-panel rounded-[30px] p-5">
+        <div className="soft-panel rounded-[28px] p-5">
           <h3 className="font-display text-2xl font-bold">Arc ritual</h3>
-          <button className="toy-button mt-4 w-full bg-coral px-5 py-3 font-extrabold text-white" onClick={() => onSection("quests")}>
+          <button className="mt-4 w-full rounded-2xl bg-coral px-5 py-3 font-extrabold text-white shadow-soft transition hover:bg-ink" onClick={() => onSection("quests")}>
             Open Command Board
           </button>
         </div>
@@ -721,8 +777,16 @@ function FlockGate({
       </div>
       <div className="soft-panel rounded-[34px] p-6">
         <h3 className="font-display text-3xl font-bold">Gate preview</h3>
-        <div className="mt-6 rounded-[34px] bg-gradient-to-br from-skyglass via-white to-sun/55 p-6 shadow-inner">
-          <Image src="/brand/arcynite-logo.png" alt="Arcynite logo" width={420} height={260} className="mx-auto h-auto w-full max-w-sm" />
+        <div className="mt-6 rounded-[30px] bg-gradient-to-br from-white via-skyglass to-mint/45 p-6 shadow-inner">
+          <ArcyniteMark />
+          <div className="mt-6 grid gap-3">
+            {["Choose faction", "Create citizen", "Enter city"].map((step, index) => (
+              <div key={step} className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 font-extrabold text-ink/70">
+                <span className="grid size-8 place-items-center rounded-full bg-lagoon text-sm text-white">{index + 1}</span>
+                {step}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -958,7 +1022,7 @@ function Profile({
   return (
     <div className="soft-panel rounded-[34px] p-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        <Image src="/brand/arcynite-logo.png" alt="" width={140} height={100} className="h-auto w-32 rounded-[28px] bg-white/70 p-2 shadow-soft" />
+        <ArcyniteMark compact />
         <div>
           <h2 className="font-display text-4xl font-bold">{citizen.exists ? citizen.username : "Arcynite Citizen"}</h2>
           <p className="mt-1 font-semibold text-ink/65">Your onchain citizen summary and rally progress.</p>
