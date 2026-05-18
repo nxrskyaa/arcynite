@@ -1,8 +1,10 @@
 # Arcynite
 
-Arcynite is a colorful isometric onboarding game for Arc Testnet. Players create an onchain citizen profile, choose a faction, explore Arcynite City, complete onboarding quests, create an AI agent profile, play Arc Flock Rally, submit scores onchain, claim badges, and compete on leaderboards.
+Arcynite is a focused onchain mini game for Arc Testnet.
 
-The app is intentionally a no-backend MVP: contract data comes from ArcyniteQuest, offchain rally run history is stored in `localStorage`, and all achievement writes use Arc Testnet.
+Core flow: connect wallet, create a citizen profile, play Arc Flock Rally, submit the final score onchain, and climb the leaderboard.
+
+The app has no backend. Gameplay runs offchain in HTML Canvas, local run history and sound preferences use `localStorage`, and only profile creation plus final score submission are written to the deployed `ArcyniteQuest` contract.
 
 ## Arc Testnet
 
@@ -42,6 +44,7 @@ Open `http://localhost:3000`.
 
 ```bash
 npm run typecheck
+npm run lint
 npm run build
 ```
 
@@ -49,58 +52,49 @@ npm run build
 
 1. Push the repository to GitHub.
 2. Import the project in Vercel.
-3. Add the environment variables from `.env.example`.
+3. Add the public environment variables from `.env.example`.
 4. Deploy with the default Next.js settings.
 
 ## Updating Contract Settings
 
-To point the app at a new contract or RPC, update these environment variables:
+To point the app at a new contract or RPC, update:
 
 - `NEXT_PUBLIC_ARCYNITE_CONTRACT_ADDRESS`
 - `NEXT_PUBLIC_ARC_RPC_URL`
 - `NEXT_PUBLIC_ARC_EXPLORER`
 
-The chain metadata is defined in `lib/arc.ts`, and the compact contract ABI is defined in `lib/contract.ts`.
+Chain metadata lives in `lib/arc.ts`. The minimal MVP ABI lives in `lib/contract.ts`.
 
 ## Onchain Actions
 
-Arcynite integrates these `ArcyniteQuest` writes:
+Arcynite MVP uses only these writes:
 
 - `createCitizen(string username, uint8 faction)`
-- `sendGM()`
-- `createAgent(string name, string role)`
-- `completeQuest(uint256 questId)`
-- `unlockZone(uint256 zoneId)`
 - `submitFlockScore(uint256 score, uint32 flockSize, uint32 coins)`
-- `claimBadge(uint256 badgeId)`
 
-The UI refreshes citizen, progress, game stats, agent, badge, quest, zone, faction, and leaderboard reads after successful transactions. Transaction success states include Arcscan links.
+Reads:
 
-## Arcynite Concept
+- `getCitizen(address user)`
+- `getGameStats(address user)`
+- `getLeaderboard()`
+- `getUserSummary(address user)`
 
-Arcynite is designed as a premium casual mobile-game onboarding world rather than a crypto dashboard. The visual system uses a bright floating island city, soft toy-like cards, playful ribbons, faction colors, collectible badges, and smooth Framer Motion transitions.
+Score submission uses argument order `[score, flockSize, coins]` and does not send `msg.value`.
 
-Factions:
+## Factions
 
 - `0` USDC Guard
 - `1` Bridge Birds
 - `2` Agent Owls
 - `3` Builder Beaks
 
-Zones:
-
-- `0` Flock Gate
-- `1` USDC Bank
-- `2` Bridge Harbor
-- `3` Agent Academy
-- `4` Flock Rally Arena
-- `5` Badge Nest
-- `6` Command Board
-- `7` Leaderboard Tower
-- `8` Arc Fountain
-
 ## Arc Flock Rally
 
-Arc Flock Rally is a 60-second HTML Canvas crowd-runner. Gameplay is offchain, and users submit only the final result onchain after game over. Desktop controls use arrow keys and drag; mobile controls use swipe.
+Arc Flock Rally is a 60-second pseudo-isometric lane runner. Move across three lanes, collect citizens and Arc rewards, avoid hazards, and submit only the final game-over result.
+
+Controls:
+
+- Desktop: Arrow Left, Arrow Right, A, D, mouse drag
+- Mobile: swipe or touch drag across the canvas
 
 There are no gambling mechanics, token rewards, or automatic score submissions.

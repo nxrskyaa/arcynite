@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Pause, Play, RotateCcw, Send, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type RallyResult = {
@@ -44,6 +44,8 @@ type Snapshot = {
   coins: number;
   combo: number;
 };
+
+type GamePhase = "ready" | "countdown" | "playing" | "paused" | "gameOver" | "submitted";
 
 type SimState = Snapshot & {
   visualLane: number;
@@ -422,7 +424,7 @@ function drawToken(ctx: CanvasRenderingContext2D, kind: EntityKind, x: number, y
   }
 }
 
-function drawScene(ctx: CanvasRenderingContext2D, sim: SimState, width: number, height: number, now: number) {
+function drawScene(ctx: CanvasRenderingContext2D, sim: SimState, width: number, height: number, now: number, factionAccent: string) {
   ctx.clearRect(0, 0, width, height);
   ctx.save();
   if (sim.shake > 0) {
@@ -536,7 +538,7 @@ function drawScene(ctx: CanvasRenderingContext2D, sim: SimState, width: number, 
     const follower = lanePoint(sim.visualLane + offsetLane, 0.88 - i * 0.034, width, height);
     drawBird(ctx, follower.x, follower.y + Math.sin(now * 0.008 + i) * 3, 44 * follower.scale, ["#64D9FF", "#FF91A8", "#FFD166", "#73DFA9"][i % 4], false, now * 0.012 + i);
   }
-  drawBird(ctx, leader.x, leader.y + Math.sin(now * 0.01) * 4, 64 * leader.scale, "#35C9EA", true, now * 0.014);
+  drawBird(ctx, leader.x, leader.y + Math.sin(now * 0.01) * 4, 64 * leader.scale, factionAccent, true, now * 0.014);
 
   sim.particles.forEach((particle) => {
     const alpha = clamp(particle.life / particle.maxLife, 0, 1);
@@ -561,26 +563,94 @@ function drawScene(ctx: CanvasRenderingContext2D, sim: SimState, width: number, 
 }
 
 export function ArcFlockRally({
+  factionAccent,
   onSubmit,
   submitting,
   lastTxUrl,
-  submitDisabledReason,
-  onRunComplete
+  submitDisabledReason
 }: {
-  onSubmit: (result: RallyResult) => void;
+  factionAccent: string;
+  onSubmit: (result: RallyResult) => Promise<boolean> | boolean;
   submitting: boolean;
   lastTxUrl?: string;
   submitDisabledReason?: string;
-  onRunComplete?: (result: RallyResult) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pointerStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number>(0);
   const simRef = useRef<SimState>({ ...initialSim });
+  const audioRef = useRef<AudioContext | null>(null);
+  const musicTimerRef = useRef<number | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot>(initialSim);
   const [result, setResult] = useState<RallyResult | null>(null);
   const [history, setHistory] = useState<RallyResult[]>([]);
+  const [phase, setPhase] = useState<GamePhase>("ready");
+  const [countdown, setCountdown] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  const ensureAudio = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    audioRef.current ??= new AudioContext();
+    if (audioRef.current.state === "suspended") void audioRef.current.resume();
+    return audioRef.current;
+  }, []);
+
+  const playTone = useCallback((kind: "coin" | "citizen" | "hit" | "combo" | "start" | "gameOver" | "submit") => {
+    if (!soundEnabled) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    const osc = ctx.createOscillator();
+    const freq = {
+      coin: 760,
+      citizen: 520,
+      hit: 140,
+      combo: 980,
+      start: 440,
+      gameOver: 220,
+      submit: 880
+    }[kind];
+    osc.type = kind === "hit" ? "sawtooth" : "sine";
+    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.exponentialRampToValueAtTime(kind === "hit" ? 80 : freq * 1.45, now + 0.12);
+    gain.gain.setValueAtTime(kind === "hit" ? 0.08 : 0.055, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }, [ensureAudio, soundEnabled]);
+
+  const startMusic = useCallback(() => {
+    if (!soundEnabled || musicTimerRef.current) return;
+    const notes = [392, 494, 587, 659, 587, 494];
+    let index = 0;
+    musicTimerRef.current = window.setInterval(() => {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(notes[index % notes.length], now);
+      gain.gain.setValueAtTime(0.018, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.24);
+      index += 1;
+    }, 420);
+  }, [ensureAudio, soundEnabled]);
+
+  const stopMusic = useCallback(() => {
+    if (musicTimerRef.current) {
+      window.clearInterval(musicTimerRef.current);
+      musicTimerRef.current = null;
+    }
+  }, []);
 
   const publishSnapshot = useCallback(() => {
     const sim = simRef.current;
@@ -629,21 +699,46 @@ export function ArcFlockRally({
       window.localStorage.setItem("arcynite-rally-history", JSON.stringify(next));
       return next;
     });
-    onRunComplete?.(finalResult);
+    setPhase("gameOver");
     publishSnapshot();
-  }, [onRunComplete, publishSnapshot]);
+  }, [publishSnapshot]);
 
   const reset = useCallback(() => {
     simRef.current = { ...initialSim, entities: [], particles: [] };
     setResult(null);
+    setPhase("ready");
+    setCountdown(null);
     publishSnapshot();
   }, [publishSnapshot]);
 
-  const start = useCallback(() => {
+  const beginPlaying = useCallback(() => {
     simRef.current = { ...initialSim, running: true, entities: seedRunEntities(), particles: [] };
     setResult(null);
+    setPhase("playing");
+    playTone("start");
     publishSnapshot();
-  }, [publishSnapshot]);
+  }, [playTone, publishSnapshot]);
+
+  const start = useCallback(() => {
+    setResult(null);
+    simRef.current = { ...initialSim, entities: [], particles: [] };
+    setPhase("countdown");
+    void ensureAudio();
+    const steps = ["3", "2", "1", "GO"];
+    let index = 0;
+    setCountdown(steps[index]);
+    const timer = window.setInterval(() => {
+      index += 1;
+      if (index >= steps.length) {
+        window.clearInterval(timer);
+        setCountdown(null);
+        beginPlaying();
+      } else {
+        setCountdown(steps[index]);
+        playTone("start");
+      }
+    }, 650);
+  }, [beginPlaying, ensureAudio, playTone]);
 
   const changeLane = useCallback((delta: number) => {
     const sim = simRef.current;
@@ -655,14 +750,24 @@ export function ArcFlockRally({
   useEffect(() => {
     const raw = window.localStorage.getItem("arcynite-rally-history");
     if (raw) setHistory(JSON.parse(raw) as RallyResult[]);
+    setSoundEnabled(window.localStorage.getItem("arcynite-sound-enabled") === "true");
   }, []);
 
   useEffect(() => {
+    window.localStorage.setItem("arcynite-sound-enabled", String(soundEnabled));
+    if (soundEnabled && phase === "playing") startMusic();
+    if (!soundEnabled || phase !== "playing") stopMusic();
+    return () => stopMusic();
+  }, [phase, soundEnabled, startMusic, stopMusic]);
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "ArrowLeft") changeLane(-1);
-      if (event.key === "ArrowRight") changeLane(1);
+      if (["ArrowLeft", "ArrowRight", "a", "A", "d", "D", " "].includes(event.key)) event.preventDefault();
+      if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") changeLane(-1);
+      if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") changeLane(1);
       if (event.key === " " && simRef.current.running) {
         simRef.current.paused = !simRef.current.paused;
+        setPhase(simRef.current.paused ? "paused" : "playing");
         publishSnapshot();
       }
     }
@@ -670,6 +775,25 @@ export function ArcFlockRally({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [changeLane, publishSnapshot]);
+
+  useEffect(() => {
+    function pauseForBlur() {
+      if (simRef.current.running && !simRef.current.paused) {
+        simRef.current.paused = true;
+        setPhase("paused");
+        publishSnapshot();
+      }
+    }
+    function onVisibility() {
+      if (document.hidden) pauseForBlur();
+    }
+    window.addEventListener("blur", pauseForBlur);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("blur", pauseForBlur);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [publishSnapshot]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -688,10 +812,12 @@ export function ArcFlockRally({
         sim.visualLane += (sim.lane - sim.visualLane) * Math.min(1, dt * 10);
         sim.shake = Math.max(0, sim.shake - dt * 28);
 
-        const spawnRate = Math.max(0.3, 0.52 - sim.combo * 0.018);
+        const elapsed = 60 - sim.timeLeft;
+        const difficulty = elapsed < 15 ? 0 : elapsed < 35 ? 1 : 2;
+        const spawnRate = Math.max(0.28, 0.58 - difficulty * 0.1 - sim.combo * 0.012);
         if (sim.spawnClock >= spawnRate) {
           sim.spawnClock = 0;
-          const isHazard = Math.random() < 0.34;
+          const isHazard = Math.random() < 0.24 + difficulty * 0.08;
           const pool = isHazard ? hazardKinds : collectibleKinds;
           sim.entities.push({
             id: now + Math.random(),
@@ -703,7 +829,7 @@ export function ArcFlockRally({
         }
 
         sim.entities = sim.entities
-          .map((entity) => ({ ...entity, t: entity.t + dt * (0.38 + sim.combo * 0.012) }))
+          .map((entity) => ({ ...entity, t: entity.t + dt * (0.34 + difficulty * 0.06 + sim.combo * 0.008) }))
           .filter((entity) => {
             const hit = entity.lane === sim.lane && entity.t > 0.79 && entity.t < 0.95;
             if (!hit) return entity.t < 1.12;
@@ -714,26 +840,32 @@ export function ArcFlockRally({
               sim.flockSize += 1;
               sim.score += 130 * sim.combo;
               addParticle(point.x, point.y - 40, meta.color, "+flock");
+              playTone("citizen");
             } else if (entity.kind === "coin") {
               sim.coins += 1;
               sim.score += 90 * sim.combo;
               addParticle(point.x, point.y - 40, meta.color, "+USDC");
+              playTone("coin");
             } else if (entity.kind === "crystal") {
               sim.score += 320 * sim.combo;
               addParticle(point.x, point.y - 40, meta.color, "+crystal");
+              playTone("coin");
             } else if (entity.kind === "core") {
               sim.combo = Math.min(9, sim.combo + 1);
               sim.score += 180 * sim.combo;
               addParticle(point.x, point.y - 40, meta.color, `combo x${sim.combo}`);
+              playTone("combo");
             } else if (entity.kind === "shard") {
               sim.score += 460 + sim.flockSize * 25;
               addParticle(point.x, point.y - 40, meta.color, "+bridge");
+              playTone("coin");
             } else {
               sim.combo = Math.max(1, sim.combo - 1);
               sim.score = Math.max(0, sim.score - (entity.kind === "crate" ? 220 : 140));
               sim.flockSize -= entity.kind === "bot" ? 2 : 1;
               sim.shake = 12;
               addParticle(point.x, point.y - 38, meta.color, meta.label);
+              playTone("hit");
             }
             for (let i = 0; i < 8; i += 1) addParticle(point.x, point.y, meta.color);
             return false;
@@ -749,13 +881,16 @@ export function ArcFlockRally({
           }))
           .filter((particle) => particle.life > 0);
 
-        if (sim.timeLeft <= 0 || sim.flockSize <= 0) finish();
+        if (sim.timeLeft <= 0 || sim.flockSize <= 0) {
+          playTone("gameOver");
+          finish();
+        }
         publishSnapshot();
       } else {
         sim.visualLane += (sim.lane - sim.visualLane) * Math.min(1, dt * 8);
       }
 
-      drawScene(ctx, sim, canvas.width, canvas.height, now);
+      drawScene(ctx, sim, canvas.width, canvas.height, now, factionAccent);
       rafRef.current = requestAnimationFrame(loop);
     };
 
@@ -763,7 +898,7 @@ export function ArcFlockRally({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [addParticle, finish, publishSnapshot]);
+  }, [addParticle, factionAccent, finish, playTone, publishSnapshot]);
 
   const pointerStart = (clientX: number) => {
     pointerStartRef.current = clientX;
@@ -782,11 +917,21 @@ export function ArcFlockRally({
     const sim = simRef.current;
     if (!sim.running) return;
     sim.paused = !sim.paused;
+    setPhase(sim.paused ? "paused" : "playing");
     publishSnapshot();
   };
 
+  const handleSubmit = async () => {
+    if (!result || submitDisabledReason || submitting || result.score <= 0 || result.flockSize <= 0) return;
+    const ok = await onSubmit(result);
+    if (ok) {
+      setPhase("submitted");
+      playTone("submit");
+    }
+  };
+
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="space-y-5">
       <div className="soft-panel overflow-hidden rounded-[28px] p-3">
         <div className="relative overflow-hidden rounded-[22px] border-2 border-white/80 bg-skyglass">
           <canvas
@@ -807,7 +952,7 @@ export function ArcFlockRally({
             <div className="ribbon px-3 py-2">Combo x{snapshot.combo}</div>
             <div className="ribbon px-3 py-2">Time {Math.ceil(snapshot.timeLeft)}s</div>
           </div>
-          {!snapshot.running && !result ? (
+          {phase === "ready" ? (
             <div className="absolute inset-0 grid place-items-center bg-white/16 backdrop-blur-[1px]">
               <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-4 max-w-md rounded-[28px] bg-white/90 p-5 text-center shadow-soft ring-1 ring-white/80">
                 <Sparkles className="mx-auto mb-2 size-9 text-lagoon" />
@@ -821,15 +966,47 @@ export function ArcFlockRally({
               </motion.div>
             </div>
           ) : null}
+          {phase === "countdown" ? (
+            <div className="absolute inset-0 grid place-items-center bg-white/10 backdrop-blur-[1px]">
+              <motion.div
+                key={countdown}
+                initial={{ scale: 0.55, opacity: 0, rotate: -6 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                exit={{ scale: 1.3, opacity: 0 }}
+                className="rounded-[34px] bg-white/88 px-10 py-7 font-display text-7xl font-black text-lagoon shadow-soft"
+              >
+                {countdown}
+              </motion.div>
+            </div>
+          ) : null}
+          {phase === "paused" ? (
+            <div className="absolute inset-0 grid place-items-center bg-ink/10 backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-[30px] bg-white/92 p-5 text-center shadow-soft">
+                <h3 className="font-display text-3xl font-bold text-ink">Paused</h3>
+                <button className="toy-button mt-4 bg-lagoon px-6 py-3 font-extrabold text-white" onClick={togglePause}>Resume Rally</button>
+              </motion.div>
+            </div>
+          ) : null}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button className="toy-button bg-ink px-5 py-3 font-extrabold text-white" onClick={start}>
             <Play className="mr-2 inline size-4" />
-            Start Rally
+            {phase === "gameOver" || phase === "submitted" ? "Play Again" : "Start Rally"}
           </button>
           <button className="toy-button bg-white px-5 py-3 font-extrabold text-ink disabled:opacity-55" onClick={togglePause} disabled={!snapshot.running}>
             <Pause className="mr-2 inline size-4" />
             {snapshot.paused ? "Resume" : "Pause"}
+          </button>
+          <button
+            className="toy-button bg-white px-5 py-3 font-extrabold text-ink"
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              if (next) void ensureAudio();
+            }}
+          >
+            {soundEnabled ? <Volume2 className="mr-2 inline size-4" /> : <VolumeX className="mr-2 inline size-4" />}
+            {soundEnabled ? "Sound On" : "Sound Off"}
           </button>
           <button className="toy-button bg-white px-5 py-3 font-extrabold text-ink" onClick={reset}>
             <RotateCcw className="mr-2 inline size-4" />
@@ -839,7 +1016,7 @@ export function ArcFlockRally({
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="soft-panel rounded-[28px] p-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-skyglass to-mint shadow-soft ring-1 ring-white/80">
@@ -852,7 +1029,7 @@ export function ArcFlockRally({
           </div>
           {result ? (
             <motion.div initial={{ scale: 0.94, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-3xl bg-sun/40 p-4">
-              <p className="text-sm font-extrabold uppercase tracking-wide text-ink/60">Run complete</p>
+              <p className="text-sm font-extrabold uppercase tracking-wide text-ink/60">{phase === "submitted" ? "Submitted on Arc" : "Run complete"}</p>
               <div className="mt-3 grid grid-cols-2 gap-3 text-sm font-bold">
                 <span>Score {result.score}</span>
                 <span>Flock {result.flockSize}</span>
@@ -862,11 +1039,11 @@ export function ArcFlockRally({
               </div>
               <button
                 className="toy-button mt-4 w-full bg-coral px-5 py-3 font-extrabold text-white disabled:opacity-60"
-                onClick={() => onSubmit(result)}
-                disabled={Boolean(submitDisabledReason) || submitting || result.score <= 0 || result.flockSize <= 0}
+                onClick={handleSubmit}
+                disabled={phase === "submitted" || Boolean(submitDisabledReason) || submitting || result.score <= 0 || result.flockSize <= 0}
               >
                 <Send className="mr-2 inline size-4" />
-                {submitting ? "Submitting..." : "Submit Score on Arc"}
+                {phase === "submitted" ? "Score Submitted" : submitting ? "Submitting..." : "Submit Score on Arc"}
               </button>
               {submitDisabledReason ? <p className="mt-3 rounded-2xl bg-white/70 px-3 py-2 text-center text-sm font-extrabold text-coral">{submitDisabledReason}</p> : null}
               {lastTxUrl ? (

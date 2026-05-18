@@ -24,17 +24,8 @@ export function normalizeCitizen(value: unknown) {
   const faction = toNumber(fromTuple(value, 1, "faction", 0));
   const xp = toNumber(fromTuple(value, 2, "xp", 0));
   const level = toNumber(fromTuple(value, 3, "level", xp > 0 ? 1 : 0));
-  const gmStreak = toNumber(fromTuple(value, 4, "gmStreak", 0));
   const exists = Boolean(fromTuple(value, 6, "exists", Boolean(username)));
-  return { username, faction, xp, level, gmStreak, exists };
-}
-
-export function normalizeProgress(value: unknown) {
-  return {
-    questsCompleted: toNumber(fromTuple(value, 0, "questsCompleted", 0)),
-    badgesClaimed: toNumber(fromTuple(value, 1, "badgesClaimed", 0)),
-    zonesUnlocked: toNumber(fromTuple(value, 2, "zonesUnlocked", 1))
-  };
+  return { username, faction, xp, level, exists };
 }
 
 export function normalizeGameStats(value: unknown) {
@@ -47,14 +38,13 @@ export function normalizeGameStats(value: unknown) {
   };
 }
 
-export function normalizeAgent(value: unknown) {
-  const hasAgent = Boolean(fromTuple(value, 0, "hasAgent", false));
-  const name = fromTuple<string>(value, 1, "agentName", "");
+export function normalizeUserSummary(value: unknown) {
   return {
-    name,
-    role: fromTuple<string>(value, 2, "agentRole", ""),
-    createdAt: toNumber(fromTuple(value, 3, "agentCreatedAt", 0)),
-    created: hasAgent
+    username: String(fromTuple(value, 0, "username", "")),
+    faction: toNumber(fromTuple(value, 1, "faction", 0)),
+    level: toNumber(fromTuple(value, 2, "level", 0)),
+    xp: toNumber(fromTuple(value, 3, "xp", 0)),
+    highScore: toNumber(fromTuple(value, 4, "highScore", 0))
   };
 }
 
@@ -66,19 +56,7 @@ export function normalizeLeaderboard(value: unknown) {
     username: String(fromTuple(row, 1, "username", "Citizen")),
     faction: toNumber(fromTuple(row, 2, "faction", 0)),
     highScore: toNumber(fromTuple(row, 3, "highScore", 0)),
-    level: toNumber(fromTuple(row, 4, "level", 1))
+    level: toNumber(fromTuple(row, 4, "level", 1)),
+    demo: false
   }));
-}
-
-export function normalizeFactionStats(value: unknown) {
-  const rows = Array.isArray(value) ? value : [];
-  return [0, 1, 2, 3].map((id) => {
-    const row = rows[id];
-    return {
-      xp: toNumber(fromTuple(row, 0, "xp", 0)),
-      score: toNumber(fromTuple(row, 1, "score", 0)),
-      members: toNumber(fromTuple(row, 2, "members", 0)),
-      runs: toNumber(fromTuple(row, 3, "runs", 0))
-    };
-  });
 }

@@ -15,7 +15,7 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: "Arcynite",
-  description: "A colorful Arc Testnet onboarding city with quests, badges, agents, and Arc Flock Rally."
+  description: "A colorful Arc Testnet mini game: play Arc Flock Rally, submit your score onchain, and climb the leaderboard."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
