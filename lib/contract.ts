@@ -43,13 +43,20 @@ export const arcyniteQuestAbi = [
   {
     type: "function",
     name: "submitFlockScore",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
       { name: "score", type: "uint256" },
       { name: "flockSize", type: "uint32" },
       { name: "coins", type: "uint32" }
     ],
     outputs: []
+  },
+  {
+    type: "function",
+    name: "scoreSubmitFee",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }]
   },
   {
     type: "function",
@@ -133,14 +140,10 @@ export const arcyniteQuestAbi = [
     stateMutability: "view",
     inputs: [{ name: "user", type: "address" }],
     outputs: [
-      {
-        type: "tuple",
-        components: [
-          { name: "name", type: "string" },
-          { name: "role", type: "string" },
-          { name: "created", type: "bool" }
-        ]
-      }
+      { name: "hasAgent", type: "bool" },
+      { name: "agentName", type: "string" },
+      { name: "agentRole", type: "string" },
+      { name: "agentCreatedAt", type: "uint64" }
     ]
   },
   {

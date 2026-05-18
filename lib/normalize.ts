@@ -48,11 +48,13 @@ export function normalizeGameStats(value: unknown) {
 }
 
 export function normalizeAgent(value: unknown) {
-  const name = fromTuple<string>(value, 0, "name", "");
+  const hasAgent = Boolean(fromTuple(value, 0, "hasAgent", false));
+  const name = fromTuple<string>(value, 1, "agentName", "");
   return {
     name,
-    role: fromTuple<string>(value, 1, "role", ""),
-    created: Boolean(fromTuple(value, 2, "created", Boolean(name)))
+    role: fromTuple<string>(value, 2, "agentRole", ""),
+    createdAt: toNumber(fromTuple(value, 3, "agentCreatedAt", 0)),
+    created: hasAgent
   };
 }
 

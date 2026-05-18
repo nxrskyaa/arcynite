@@ -19,7 +19,7 @@ import {
   Wallet
 } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useAccount,
   useConnect,
@@ -52,6 +52,16 @@ type TxState = {
   error?: string;
 };
 
+type UserSummary = {
+  username: string;
+  faction: number;
+  level: number;
+  xp: number;
+  highScore: number;
+  questsCompleted: number;
+  badgesClaimed: number;
+};
+
 const sectionLabels: { id: Section; label: string; icon: typeof Map }[] = [
   { id: "city", label: "City", icon: Map },
   { id: "gate", label: "Gate", icon: UserRound },
@@ -69,6 +79,33 @@ function field<T>(value: T | undefined, fallback: T) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function decodeTxError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+  if (message.includes("NO_CITIZEN")) return "Create your Arcynite profile first";
+  if (message.includes("INVALID_SCORE")) return "Score must be greater than 0";
+  if (message.includes("INVALID_FLOCK_SIZE")) return "Flock size must be greater than 0";
+  if (message.includes("INSUFFICIENT_FEE")) return "Score submit fee is required";
+  if (message.includes("PAUSED")) return "Contract is paused";
+  if (lower.includes("user rejected") || lower.includes("user denied") || lower.includes("rejected the request")) return "Transaction rejected in wallet";
+  return message || "Transaction failed.";
+}
+
+function normalizeUserSummary(value: unknown): UserSummary {
+  const tuple = Array.isArray(value) ? value : [];
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const read = (index: number, key: string, fallback: unknown) => record[key] ?? tuple[index] ?? fallback;
+  return {
+    username: String(read(0, "username", "")),
+    faction: Number(read(1, "faction", 0)),
+    level: Number(read(2, "level", 0)),
+    xp: Number(read(3, "xp", 0)),
+    highScore: Number(read(4, "highScore", 0)),
+    questsCompleted: Number(read(5, "questsCompleted", 0)),
+    badgesClaimed: Number(read(6, "badgesClaimed", 0))
+  };
 }
 
 function ArcyniteMark({ compact = false }: { compact?: boolean }) {
@@ -107,24 +144,26 @@ function ArcyniteMark({ compact = false }: { compact?: boolean }) {
 
 function MiniCity() {
   const buildings = [
-    "left-[12%] top-[38%] h-24 w-20 bg-coral",
-    "left-[30%] top-[24%] h-36 w-24 bg-lagoon",
-    "left-[50%] top-[32%] h-28 w-24 bg-lilac",
-    "right-[14%] top-[42%] h-24 w-24 bg-sun"
+    { className: "left-[11%] top-[43%] h-24 w-20 bg-coral", label: "Gate" },
+    { className: "left-[29%] top-[25%] h-40 w-24 bg-lagoon", label: "USDC" },
+    { className: "left-[49%] top-[35%] h-32 w-24 bg-lilac", label: "Agent" },
+    { className: "right-[12%] top-[45%] h-24 w-24 bg-sun", label: "Rally" }
   ];
 
   return (
-    <div className="relative mx-auto aspect-[1.1/1] w-full max-w-[560px]">
-      <div className="absolute inset-x-8 bottom-4 h-16 rounded-[100%] bg-ink/10 blur-xl" />
-      <div className="absolute inset-8 rounded-[44px] bg-gradient-to-br from-mint via-skyglass to-sun/80 shadow-toy [transform:rotateX(58deg)_rotateZ(-35deg)]" />
-      <div className="absolute left-[18%] top-[58%] h-16 w-64 rounded-[100%] bg-lagoon/15 blur-md" />
-      {buildings.map((className, index) => (
+    <div className="relative mx-auto aspect-[1.12/1] w-full max-w-[610px]">
+      <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-x-8 bottom-2 h-20 rounded-[100%] bg-ink/10 blur-2xl" />
+      <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-6 rounded-[48px] bg-gradient-to-br from-mint via-skyglass to-sun/85 shadow-toy [transform:rotateX(58deg)_rotateZ(-35deg)]" />
+      <div className="absolute left-[20%] top-[58%] h-14 w-72 rounded-[100%] bg-lagoon/15 blur-md" />
+      <div className="absolute left-[26%] top-[54%] h-3 w-[48%] rotate-[-18deg] rounded-full bg-white/70 shadow-soft" />
+      <div className="absolute left-[37%] top-[37%] h-3 w-[35%] rotate-[20deg] rounded-full bg-white/60 shadow-soft" />
+      {buildings.map((building, index) => (
         <motion.div
-          key={className}
+          key={building.className}
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.12 + index * 0.08 }}
-          className={`absolute rounded-[22px] border-4 border-white/70 shadow-soft ${className}`}
+          className={`absolute rounded-[22px] border-4 border-white/70 shadow-soft ${building.className}`}
         >
           <div className="mx-auto mt-[-18px] h-10 w-12 rounded-t-full bg-white/80" />
           <div className="mx-auto mt-4 grid w-12 grid-cols-2 gap-2">
@@ -133,13 +172,14 @@ function MiniCity() {
             <span className="h-3 rounded-full bg-white/60" />
             <span className="h-3 rounded-full bg-white/60" />
           </div>
+          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[11px] font-extrabold text-ink shadow-soft">{building.label}</span>
         </motion.div>
       ))}
-      <div className="absolute left-[42%] top-[12%] grid size-24 place-items-center rounded-full bg-white/85 shadow-soft">
+      <motion.div animate={{ scale: [1, 1.08, 1], rotate: [0, 5, 0] }} transition={{ duration: 3.8, repeat: Infinity }} className="absolute left-[42%] top-[10%] grid size-24 place-items-center rounded-full bg-white/85 shadow-soft">
         <Sparkles className="size-10 text-lagoon" />
-      </div>
-      <div className="absolute bottom-[18%] right-[10%] rounded-[24px] bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-soft">USDC gas</div>
-      <div className="absolute left-[8%] top-[18%] rounded-[24px] bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-soft">Quest city</div>
+      </motion.div>
+      <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }} className="absolute bottom-[18%] right-[8%] rounded-[24px] bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-soft">USDC gas</motion.div>
+      <motion.div animate={{ y: [0, 7, 0] }} transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }} className="absolute left-[7%] top-[17%] rounded-[24px] bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-soft">Quest route</motion.div>
     </div>
   );
 }
@@ -157,6 +197,9 @@ export function ArcyniteApp() {
   const [faction, setFaction] = useState(0);
   const [agentName, setAgentName] = useState("");
   const [agentRole, setAgentRole] = useState<(typeof roles)[number]>("Researcher");
+  const [lessonProgress, setLessonProgress] = useState<Record<number, number>>({});
+  const [localRallyRun, setLocalRallyRun] = useState(false);
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
 
   const connectedToArc = isConnected && chainId === arcTestnet.id;
   const contract = { address: arcyniteContractAddress, abi: arcyniteQuestAbi, chainId: arcTestnet.id } as const;
@@ -178,6 +221,13 @@ export function ArcyniteApp() {
   const gameStatsRead = useReadContract({
     ...contract,
     functionName: "getGameStats",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address) }
+  });
+
+  const userSummaryRead = useReadContract({
+    ...contract,
+    functionName: "getUserSummary",
     args: address ? [address] : undefined,
     query: { enabled: Boolean(address) }
   });
@@ -240,6 +290,7 @@ export function ArcyniteApp() {
   const citizen = normalizeCitizen(citizenRead.data);
   const progress = normalizeProgress(progressRead.data);
   const gameStats = normalizeGameStats(gameStatsRead.data);
+  const userSummary = normalizeUserSummary(userSummaryRead.data);
   const agent = normalizeAgent(agentRead.data);
   const leaderboard = normalizeLeaderboard(leaderboardRead.data);
   const factionStats = normalizeFactionStats(factionStatsRead.data);
@@ -265,11 +316,27 @@ export function ArcyniteApp() {
     [zoneReads.data]
   );
 
+  useEffect(() => {
+    const rawLessons = window.localStorage.getItem("arcynite-lesson-progress");
+    if (rawLessons) setLessonProgress(JSON.parse(rawLessons) as Record<number, number>);
+    setLocalRallyRun(Boolean(window.localStorage.getItem("arcynite-rally-played")));
+    setScoreSubmitted(Boolean(window.localStorage.getItem("arcynite-score-submitted")));
+  }, []);
+
+  function setQuestStep(questId: number, step: number) {
+    setLessonProgress((current) => {
+      const next = { ...current, [questId]: Math.max(step, current[questId] ?? 0) };
+      window.localStorage.setItem("arcynite-lesson-progress", JSON.stringify(next));
+      return next;
+    });
+  }
+
   async function refreshReads() {
     await Promise.allSettled([
       citizenRead.refetch(),
       progressRead.refetch(),
       gameStatsRead.refetch(),
+      userSummaryRead.refetch(),
       agentRead.refetch(),
       leaderboardRead.refetch(),
       factionStatsRead.refetch(),
@@ -293,7 +360,7 @@ export function ArcyniteApp() {
   async function runTx(label: string, functionName: string, args: readonly unknown[] = []) {
     if (!connectedToArc) {
       setTx({ label, status: "error", error: "Connect to Arc Testnet first." });
-      return;
+      return false;
     }
 
     try {
@@ -306,28 +373,140 @@ export function ArcyniteApp() {
       if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       setTx({ label, status: "success", hash });
       await refreshReads();
+      return true;
     } catch (error) {
       setTx({
         label,
         status: "error",
-        error: error instanceof Error ? error.message : "Transaction failed."
+        error: decodeTxError(error)
       });
+      return false;
     }
   }
 
   async function createCitizen() {
-    await runTx("Create citizen", "createCitizen", [username.trim() || "Arcynite Citizen", faction]);
-    setActiveSection("city");
+    const ok = await runTx("Create citizen", "createCitizen", [username.trim() || "Arcynite Citizen", faction]);
+    if (ok) {
+      setQuestStep(0, 4);
+      setActiveSection("city");
+    }
+  }
+
+  async function createAgent() {
+    if (!connectedToArc) {
+      setTx({ label: "Create agent", status: "error", error: "Connect to Arc Testnet first." });
+      return;
+    }
+
+    try {
+      setTx({ label: "Create agent", status: "pending" });
+      const hash = await writeContractAsync({
+        ...contract,
+        functionName: "createAgent",
+        args: [agentName.trim() || "Arcynite Agent", agentRole]
+      });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      setTx({ label: "Create agent", status: "success", hash });
+      await Promise.allSettled([citizenRead.refetch(), progressRead.refetch(), userSummaryRead.refetch(), agentRead.refetch()]);
+      setQuestStep(6, 4);
+    } catch (error) {
+      setTx({ label: "Create agent", status: "error", error: decodeTxError(error) });
+    }
   }
 
   async function submitScore(result: RallyResult) {
-    await runTx("Submit flock score", "submitFlockScore", [BigInt(result.score), result.flockSize, result.coins]);
+    const finalScore = Math.floor(result.score);
+    const finalFlockSize = Math.floor(result.flockSize);
+    const coinsCollected = Math.floor(result.coins);
+    const uint32Max = 4_294_967_295;
+    const args = [BigInt(finalScore), Math.min(finalFlockSize, uint32Max), Math.min(Math.max(coinsCollected, 0), uint32Max)] as const;
+
+    console.log({
+      finalScore,
+      finalFlockSize,
+      coinsCollected,
+      args: [args[0].toString(), args[1], args[2]]
+    });
+
+    if (!isConnected) {
+      setTx({ label: "Submit flock score", status: "error", error: "Connect wallet first." });
+      return;
+    }
+    if (!connectedToArc) {
+      setTx({ label: "Submit flock score", status: "error", error: "Connect to Arc Testnet first." });
+      return;
+    }
+    const citizenCheck = publicClient
+      ? normalizeCitizen(
+          await publicClient.readContract({
+            ...contract,
+            functionName: "getCitizen",
+            args: [address!]
+          })
+        )
+      : citizen;
+    if (!citizenCheck.exists) {
+      setTx({ label: "Submit flock score", status: "error", error: "Create your Arcynite profile first" });
+      return;
+    }
+    if (!Number.isInteger(finalScore) || finalScore <= 0) {
+      setTx({ label: "Submit flock score", status: "error", error: "Score must be greater than 0" });
+      return;
+    }
+    if (!Number.isInteger(finalFlockSize) || finalFlockSize <= 0 || finalFlockSize > uint32Max) {
+      setTx({ label: "Submit flock score", status: "error", error: "Flock size must be greater than 0" });
+      return;
+    }
+    if (!Number.isInteger(coinsCollected) || coinsCollected < 0 || coinsCollected > uint32Max) {
+      setTx({ label: "Submit flock score", status: "error", error: "Coins must be a valid integer" });
+      return;
+    }
+
+    try {
+      setTx({ label: "Submit flock score", status: "pending" });
+      const fee = publicClient
+        ? await publicClient.readContract({
+            ...contract,
+            functionName: "scoreSubmitFee"
+          })
+        : BigInt(0);
+      const hash = await writeContractAsync({
+        ...contract,
+        functionName: "submitFlockScore",
+        args,
+        value: fee > BigInt(0) ? fee : undefined
+      });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      setTx({ label: "Submit flock score", status: "success", hash });
+      window.localStorage.setItem("arcynite-score-submitted", "1");
+      setScoreSubmitted(true);
+      setQuestStep(8, 4);
+      await Promise.allSettled([
+        gameStatsRead.refetch(),
+        userSummaryRead.refetch(),
+        progressRead.refetch(),
+        leaderboardRead.refetch(),
+        factionStatsRead.refetch(),
+        badgeClaimableReads.refetch()
+      ]);
+    } catch (error) {
+      setTx({ label: "Submit flock score", status: "error", error: decodeTxError(error) });
+    }
   }
 
   const currentFaction = factions[field(citizen.faction, 0)] ?? factions[0];
   const txLink = tx.hash ? txUrl(tx.hash) : undefined;
   const activeNavItem = sectionLabels.find((item) => item.id === activeSection) ?? sectionLabels[0];
   const walletLabel = connectedToArc ? "Arc Testnet" : isConnected ? "Wrong chain" : "Preview mode";
+  const scoreSubmitDisabledReason = !isConnected
+    ? "Connect wallet first"
+    : !connectedToArc
+      ? "Switch to Arc Testnet"
+      : !citizen.exists
+        ? "Create your Arcynite profile first"
+        : tx.status === "pending"
+          ? "Transaction pending"
+          : undefined;
 
   return (
     <main className="min-h-screen">
@@ -449,7 +628,19 @@ export function ArcyniteApp() {
           />
         ) : null}
 
-        {activeSection === "rally" ? <ArcFlockRally onSubmit={submitScore} submitting={tx.status === "pending"} lastTxUrl={txLink} /> : null}
+        {activeSection === "rally" ? (
+          <ArcFlockRally
+            onSubmit={submitScore}
+            submitting={tx.status === "pending"}
+            lastTxUrl={txLink}
+            submitDisabledReason={scoreSubmitDisabledReason}
+            onRunComplete={() => {
+              window.localStorage.setItem("arcynite-rally-played", "1");
+              setLocalRallyRun(true);
+              setQuestStep(7, 4);
+            }}
+          />
+        ) : null}
 
         {activeSection === "academy" ? (
           <AgentAcademy
@@ -461,14 +652,21 @@ export function ArcyniteApp() {
             setName={setAgentName}
             setRole={setAgentRole}
             pending={tx.status === "pending"}
-            onCreate={() => runTx("Create agent", "createAgent", [agentName.trim() || "Arcynite Agent", agentRole])}
+            onCreate={createAgent}
           />
         ) : null}
 
         {activeSection === "quests" ? (
           <QuestCenter
             completedQuestIds={completedQuestIds}
+            claimedBadgeIds={claimedBadgeIds}
             pending={tx.status === "pending"}
+            hasProfile={citizen.exists}
+            hasAgent={agent.created}
+            localRallyRun={localRallyRun}
+            scoreSubmitted={scoreSubmitted || gameStats.totalRuns > 0}
+            lessonProgress={lessonProgress}
+            onLessonStep={setQuestStep}
             onComplete={(questId) => runTx("Complete quest", "completeQuest", [BigInt(questId)])}
             onGM={() => runTx("Send GM", "sendGM")}
           />
@@ -491,6 +689,7 @@ export function ArcyniteApp() {
             citizen={citizen}
             progress={progress}
             gameStats={gameStats}
+            userSummary={userSummary}
             agent={agent}
             factionName={currentFaction.name}
           />
@@ -522,13 +721,13 @@ function Hero({
   onExplore: () => void;
 }) {
   return (
-    <section className="relative overflow-hidden px-4 pb-8 pt-6 sm:px-6 lg:px-8">
-      <div className="mx-auto grid min-h-[620px] max-w-7xl items-center gap-10 lg:grid-cols-[0.92fr_1.08fr]">
+    <section className="relative overflow-hidden px-4 pb-6 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[540px] max-w-7xl items-center gap-8 lg:grid-cols-[0.86fr_1.14fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
           <ArcyniteMark />
-          <h1 className="max-w-2xl font-display text-5xl font-bold leading-[0.96] text-ink sm:text-7xl">A playable onboarding city for Arc Testnet.</h1>
-          <p className="mt-6 max-w-xl text-lg font-bold leading-8 text-ink/68">
-            Create a citizen, learn USDC gas, complete quests, train an agent, play the rally, and submit achievements to Arc.
+          <h1 className="max-w-2xl font-display text-5xl font-bold leading-[0.96] text-ink sm:text-6xl xl:text-7xl">A playable Arc Testnet city, not a claim board.</h1>
+          <p className="mt-5 max-w-xl text-lg font-bold leading-8 text-ink/68">
+            Follow city lessons, learn USDC gas and bridge safety, train an agent, play the rally, then record real testnet achievements on Arc.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             {!isConnected ? (
@@ -554,7 +753,7 @@ function Hero({
           </div>
           <div className="mt-5 flex flex-wrap gap-2 text-sm font-extrabold text-ink/65">
             <span className="ribbon px-4 py-2">Arc Testnet</span>
-            <span className="ribbon px-4 py-2">USDC native gas</span>
+            <span className="ribbon px-4 py-2">Guided lessons</span>
             <span className="ribbon px-4 py-2">{isConnected ? shortAddress(address) : "Wallet ready"}</span>
           </div>
         </motion.div>
@@ -563,7 +762,7 @@ function Hero({
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.65, delay: 0.1 }}
-          className="relative"
+          className="relative rounded-[38px] bg-white/42 p-4 shadow-[0_30px_80px_rgba(38,50,75,0.08)] ring-1 ring-white/70"
         >
           <MiniCity />
         </motion.div>
@@ -668,6 +867,31 @@ function CityMap({
             <p className="mt-2 max-w-2xl font-semibold text-ink/62">A cleaner city board for profile creation, Arc lessons, rally play, badges, and rankings.</p>
           </div>
           <div className="rounded-2xl bg-ink px-4 py-3 text-sm font-extrabold text-white">9 zones</div>
+        </div>
+        <div className="relative mb-5 overflow-hidden rounded-[32px] bg-gradient-to-br from-mint/70 via-skyglass to-sun/60 p-5 shadow-inner">
+          <div className="absolute inset-x-10 bottom-5 h-10 rounded-full bg-ink/10 blur-xl" />
+          <div className="relative grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {zones.slice(0, 8).map((zone, index) => {
+              const Icon = zone.icon;
+              const completed = completedQuestIds.has(zone.id) || (zone.id === 0 && hasProfile);
+              return (
+                <motion.button
+                  key={zone.id}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  onClick={() => onSection(route[zone.id] ?? "quests")}
+                  className={`relative min-h-28 rounded-[26px] border-2 p-3 text-left shadow-soft ${
+                    completed ? "border-mint bg-white" : "border-white/70 bg-white/72"
+                  }`}
+                >
+                  <motion.span animate={{ y: [0, -4, 0] }} transition={{ duration: 2.4 + index * 0.12, repeat: Infinity }} className="grid size-11 place-items-center rounded-2xl bg-lagoon text-white">
+                    <Icon className="size-5" />
+                  </motion.span>
+                  <p className="mt-3 font-display text-base font-bold leading-tight">{zone.name}</p>
+                  <span className={`absolute right-3 top-3 size-3 rounded-full ${completed ? "bg-mint" : "bg-sun"}`} />
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
         <div className="relative grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {zones.map((zone) => {
@@ -881,41 +1105,135 @@ function AgentAcademy({
 
 function QuestCenter({
   completedQuestIds,
+  claimedBadgeIds,
   pending,
+  hasProfile,
+  hasAgent,
+  localRallyRun,
+  scoreSubmitted,
+  lessonProgress,
+  onLessonStep,
   onComplete,
   onGM
 }: {
   completedQuestIds: Set<number>;
+  claimedBadgeIds: Set<number>;
   pending: boolean;
+  hasProfile: boolean;
+  hasAgent: boolean;
+  localRallyRun: boolean;
+  scoreSubmitted: boolean;
+  lessonProgress: Record<number, number>;
+  onLessonStep: (questId: number, step: number) => void;
   onComplete: (questId: number) => void;
   onGM: () => void;
 }) {
+  const requirement = (questId: number) => {
+    if (questId === 0) return { ready: hasProfile, text: "Create your profile at Flock Gate first." };
+    if (questId === 6) return { ready: hasAgent, text: "Create an agent in Agent Academy first." };
+    if (questId === 7) return { ready: localRallyRun, text: "Play one local rally run first." };
+    if (questId === 8) return { ready: scoreSubmitted, text: "Submit a valid rally score first." };
+    if (questId === 9) return { ready: claimedBadgeIds.size > 0, text: "Claim at least one badge first." };
+    if (questId === 10) return { ready: hasProfile && (scoreSubmitted || claimedBadgeIds.size > 0), text: "Finish the beginner loop first." };
+    return { ready: true, text: "" };
+  };
+
   return (
-    <div className="soft-panel rounded-[34px] p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="soft-panel overflow-hidden rounded-[34px] p-6">
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-display text-4xl font-bold">Command Board</h2>
-          <p className="mt-2 font-semibold text-ink/65">Quest metadata is frontend-guided; completion is recorded onchain through ArcyniteQuest.</p>
+          <p className="mt-2 max-w-3xl font-semibold text-ink/65">Follow the Arcynite learning trail first. Each card teaches an Arc Testnet concept before the onchain completion button unlocks.</p>
         </div>
         <button className="toy-button bg-sun px-5 py-3 font-extrabold text-ink" onClick={onGM} disabled={pending}>
           <Send className="mr-2 inline size-4" />
           Send GM
         </button>
       </div>
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
         {quests.map((quest) => {
           const completed = completedQuestIds.has(quest.id);
+          const step = lessonProgress[quest.id] ?? 0;
+          const lessonReady = step > quest.steps.length;
+          const currentStep = quest.steps[Math.max(0, Math.min(step - 1, quest.steps.length - 1))];
+          const gate = requirement(quest.id);
+          const canComplete = lessonReady && gate.ready && !completed;
+          const actionText =
+            completed
+              ? "Completed"
+              : step === 0
+                ? "Start lesson"
+                : step < quest.steps.length
+                  ? "Next"
+                  : step === quest.steps.length
+                    ? "Mark lesson ready"
+                    : gate.ready
+                      ? "Complete on Arc"
+                      : quest.actionLabel;
           return (
-            <div key={quest.id} className={`rounded-[28px] border-2 p-5 shadow-soft ${completed ? "border-mint bg-mint/20" : "border-white bg-white/75"}`}>
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-display text-2xl font-bold">{quest.title}</h3>
-                <span className="ribbon px-3 py-1 text-xs font-extrabold">{quest.xp} XP</span>
+            <motion.div
+              key={quest.id}
+              whileHover={{ y: -4 }}
+              className={`relative overflow-hidden rounded-[30px] border-2 p-5 shadow-soft ${
+                completed ? "border-mint bg-mint/24" : lessonReady ? "border-sun/80 bg-white/86" : "border-white bg-white/72"
+              }`}
+            >
+              <div className="absolute -right-8 -top-8 size-24 rounded-full bg-skyglass/70" />
+              <div className="relative flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-lagoon">{quest.zone}</p>
+                  <h3 className="mt-1 font-display text-2xl font-bold">{quest.title}</h3>
+                </div>
+                <span className="ribbon shrink-0 px-3 py-1 text-xs font-extrabold">{quest.xp} XP</span>
               </div>
-              <p className="mt-2 min-h-14 text-sm font-semibold text-ink/62">{quest.description}</p>
-              <button className="toy-button mt-4 w-full bg-lagoon px-4 py-3 text-sm font-extrabold text-white disabled:bg-ink/20" disabled={completed || pending} onClick={() => onComplete(quest.id)}>
-                {completed ? "Completed" : "Complete on Arc"}
+              <p className="relative mt-2 text-sm font-semibold text-ink/62">{quest.story}</p>
+              <div className="relative mt-4 rounded-3xl bg-skyglass/50 p-4">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-ink/45">Arc concept</p>
+                <p className="mt-1 text-sm font-bold leading-6 text-ink/68">{quest.concept}</p>
+              </div>
+              <div className="relative mt-4 grid gap-3 lg:grid-cols-[0.95fr_1.05fr]">
+                <div className="rounded-3xl bg-white/70 p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-ink/45">What you learn</p>
+                  <div className="mt-3 space-y-2">
+                    {quest.learn.map((item) => (
+                      <div key={item} className="flex items-start gap-2 text-sm font-bold text-ink/66">
+                        <Sparkles className="mt-0.5 size-4 shrink-0 text-lagoon" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white/70 p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-ink/45">Lesson steps</p>
+                  <div className="mt-3 space-y-2">
+                    {quest.steps.map((item, index) => {
+                      const active = step === index + 1;
+                      const done = step > index + 1;
+                      return (
+                        <div key={item} className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-extrabold ${done ? "bg-mint/35 text-ink" : active ? "bg-sun/45 text-ink" : "bg-ink/5 text-ink/50"}`}>
+                          <span className="grid size-6 place-items-center rounded-full bg-white text-xs">{done ? "✓" : index + 1}</span>
+                          {item}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              {!gate.ready && lessonReady && !completed ? <p className="relative mt-4 rounded-2xl bg-coral/12 px-4 py-3 text-sm font-extrabold text-coral">{gate.text}</p> : null}
+              {step > 0 && !lessonReady ? <p className="relative mt-4 rounded-2xl bg-white/70 px-4 py-3 text-sm font-bold text-ink/62">Current step: {currentStep}</p> : null}
+              <button
+                className="toy-button relative mt-4 w-full bg-lagoon px-4 py-3 text-sm font-extrabold text-white disabled:bg-ink/20"
+                disabled={completed || pending || (lessonReady && !gate.ready)}
+                onClick={() => {
+                  if (step === 0) onLessonStep(quest.id, 1);
+                  else if (step < quest.steps.length) onLessonStep(quest.id, step + 1);
+                  else if (step === quest.steps.length) onLessonStep(quest.id, quest.steps.length + 1);
+                  else if (canComplete) onComplete(quest.id);
+                }}
+              >
+                {actionText}
               </button>
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -1021,6 +1339,7 @@ function Profile({
   citizen,
   progress,
   gameStats,
+  userSummary,
   agent,
   factionName
 }: {
@@ -1028,23 +1347,26 @@ function Profile({
   citizen: ReturnType<typeof normalizeCitizen>;
   progress: ReturnType<typeof normalizeProgress>;
   gameStats: ReturnType<typeof normalizeGameStats>;
+  userSummary: UserSummary;
   agent: ReturnType<typeof normalizeAgent>;
   factionName: string;
 }) {
   const stats = [
     ["Wallet", shortAddress(address)],
     ["Faction", factionName],
-    ["XP", formatNumber(citizen.xp)],
-    ["Level", formatNumber(citizen.level)],
+    ["XP", formatNumber(userSummary.xp || citizen.xp)],
+    ["Level", formatNumber(userSummary.level || citizen.level)],
     ["GM streak", formatNumber(citizen.gmStreak)],
-    ["High score", formatNumber(gameStats.highScore)],
+    ["High score", formatNumber(userSummary.highScore || gameStats.highScore)],
     ["Total score", formatNumber(gameStats.totalScore)],
     ["Total runs", formatNumber(gameStats.totalRuns)],
     ["Best flock", formatNumber(gameStats.bestFlockSize)],
     ["Total coins", formatNumber(gameStats.totalCoins)],
-    ["Quests completed", formatNumber(progress.questsCompleted)],
-    ["Badges claimed", formatNumber(progress.badgesClaimed)],
+    ["Quests completed", formatNumber(userSummary.questsCompleted || progress.questsCompleted)],
+    ["Badges claimed", formatNumber(userSummary.badgesClaimed || progress.badgesClaimed)],
     ["Zones unlocked", formatNumber(progress.zonesUnlocked)],
+    ["Agent Created", agent.created ? "1" : "0"],
+    ["Agent timestamp", agent.createdAt ? formatNumber(agent.createdAt) : "Not created"],
     ["Agent", agent.created ? `${agent.name} · ${agent.role}` : "Not created"]
   ];
 

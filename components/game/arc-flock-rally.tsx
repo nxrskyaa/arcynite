@@ -563,11 +563,15 @@ function drawScene(ctx: CanvasRenderingContext2D, sim: SimState, width: number, 
 export function ArcFlockRally({
   onSubmit,
   submitting,
-  lastTxUrl
+  lastTxUrl,
+  submitDisabledReason,
+  onRunComplete
 }: {
   onSubmit: (result: RallyResult) => void;
   submitting: boolean;
   lastTxUrl?: string;
+  submitDisabledReason?: string;
+  onRunComplete?: (result: RallyResult) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pointerStartRef = useRef<number | null>(null);
@@ -625,8 +629,9 @@ export function ArcFlockRally({
       window.localStorage.setItem("arcynite-rally-history", JSON.stringify(next));
       return next;
     });
+    onRunComplete?.(finalResult);
     publishSnapshot();
-  }, [publishSnapshot]);
+  }, [onRunComplete, publishSnapshot]);
 
   const reset = useCallback(() => {
     simRef.current = { ...initialSim, entities: [], particles: [] };
@@ -858,11 +863,12 @@ export function ArcFlockRally({
               <button
                 className="toy-button mt-4 w-full bg-coral px-5 py-3 font-extrabold text-white disabled:opacity-60"
                 onClick={() => onSubmit(result)}
-                disabled={submitting}
+                disabled={Boolean(submitDisabledReason) || submitting || result.score <= 0 || result.flockSize <= 0}
               >
                 <Send className="mr-2 inline size-4" />
                 {submitting ? "Submitting..." : "Submit Score on Arc"}
               </button>
+              {submitDisabledReason ? <p className="mt-3 rounded-2xl bg-white/70 px-3 py-2 text-center text-sm font-extrabold text-coral">{submitDisabledReason}</p> : null}
               {lastTxUrl ? (
                 <a className="mt-3 block text-center text-sm font-extrabold text-lagoon underline" href={lastTxUrl} target="_blank">
                   View transaction on Arcscan
